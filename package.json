@@ -1,0 +1,24 @@
+{
+  "name": "fnet",
+  "version": "0.0.0",
+  "description": "fnet - network over the file system",
+  "main": "lib/fnet.js",
+  "keywords": [
+    "proxy",
+    "port",
+    "forwarding"
+  ],
+  "author": "LightSpeedC",
+  "license": "MIT",
+  "homepage": "https://github.com/LightSpeedWorks/fnet",
+  "bugs": {
+    "url": "https://github.com/LightSpeedWorks/fnet/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/LightSpeedWorks/fnet"
+  },
+  "scripts": {
+    "test": "mocha"
+  }
+}
