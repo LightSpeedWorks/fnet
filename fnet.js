@@ -8,34 +8,57 @@
   var util = require('util');
   var path = require('path');
   var events = require('events');
+
   var co = require('co');
   var cofs = require('co-fs');
   var chan = require('co-chan');
   var mkdirParents = require('mkdir-parents');
   var rmdirRecursive = require('rmdir-recursive');
+
   var FINISH_TIMEOUT = 100;
 
   var dirWatches = {}; // key=dirName, value=fs.watch
 
-  function exitHandler(name) {
-    console.log('process on %s...', name);
+  //----------------------------------------------------------------------
+  // getTermName ファイル名やパス名の末尾の名前を取得(フォルダ名以外)
+  function getTermName(file) {
+    return file.replace(/\\/g, '/').split('/').pop();
+  }
+
+  //----------------------------------------------------------------------
+  // exitHandler 終了処理
+  function exitHandler(reason) {
+    var waitFlag = false;
+    console.log('process on %s... pid=%s', reason, process.pid);
     var dirs = Object.keys(dirWatches);
     for (var i in dirs) {
       var dir = dirs[i];
       var watch = dirWatches[dir];
       if (watch) watch.close();
       delete dirWatches[dir];
-      console.log('deleting... %s', dir);
+      var exists = fs.existsSync(dir);
+      if (!exists) waitFlag = true;
+      var name = getTermName(dir);
+      console.log('deleting... %s   ', name,
+         exists ? '' : '*** DOES NOT EXISTS ALREADY ***');
       rmdirRecursive.sync(dir);
     }
-    if (name !== 'exit') process.exit();
+    if (reason !== 'exit') {
+      if (waitFlag) {
+        return setTimeout(function () {
+          process.exit();
+        }, 5000);
+      }
+      process.exit();
+    }
   }
 
-  process.on('SIGHUP', exitHandler.bind(null, 'SIGHUP'));
-  process.on('SIGINT', exitHandler.bind(null, 'SIGINT'));
-  process.on('exit', exitHandler.bind(null, 'exit'));
+  process.on('SIGHUP', exitHandler.bind(null, 'SIGHUP')); // on console close
+  process.on('SIGINT', exitHandler.bind(null, 'SIGINT')); // on control-c
+  process.on('exit', exitHandler.bind(null, 'exit')); // on exit
 
-  // sleep
+  //----------------------------------------------------------------------
+  // sleep 眠る(待つ)
   function sleep(ms) {
     return function (cb) {
       setTimeout(cb, ms);
@@ -50,29 +73,27 @@
     dir: '/tmp/proxy_wk'
   };
 
-// svrDir = path.resolve(dir, 'svr'); // svr watch read, cli write
-
   var cliSocNo = 0;
   //----------------------------------------------------------------------
-  // nextCliSocNo
+  // nextCliSocNo 次のクライアントソケット番号を取得
   function nextCliSocNo() {
     return ++cliSocNo;
   }
 
   //----------------------------------------------------------------------
-  // pad
+  // pad パディング
   function pad(n, m) {
     return ('0000000000' + String(n)).slice(-m);
   }
 
   //----------------------------------------------------------------------
-  // svrDirName
+  // svrDirName サーバ・ディレクトリ名
   function svrDirName(svr, port) {
     return 'svr_' + svr + '_' + port;
   }
 
   //----------------------------------------------------------------------
-  // cliDirName
+  // cliDirName クライアント・ディレクトリ名
   function cliDirName(port) {
     return 'soc_' + hostname + '_pid' + process.pid + '_' + pad(port, 8);
   }
@@ -94,7 +115,7 @@
   }
 
   //----------------------------------------------------------------------
-  // FnetSocket.connect 接続
+  // FnetSocket.connect ソケット接続
   FnetSocket.prototype.connect = FnetSocket_connect;
   function FnetSocket_connect(port, host, cb) {
     var soc = this;
@@ -117,17 +138,16 @@
 
       try {
         yield rmdirRecursive(cliDir);
-        try {
-          yield mkdirParents(cliDir);
-        } catch (err) {
-          if (err.code !== 'EEXIST') throw err;
-        }
-        //yield cofs.writeFile(path.resolve(cliDir, 'pid.txt'), process.pid);
-        // soc.emit('error', err);
+        //try {
+        yield mkdirParents(cliDir);
+        //} catch (err) {
+        //  if (err.code !== 'EEXIST') throw err;
+        //}
 
         var cliDirWatchChan = chan();
         var cliDirWatch = fs.watch(cliDir, cliDirWatchChan);
         dirWatches[cliDir] = cliDirWatch; // ####
+        console.log('creating... %s', getTermName(cliDir)); // ####
 
         var conFile = path.resolve(remoteDir, 'con_' + host + '_' + soc.$no);
         yield cofs.writeFile(conFile + '.tmp', soc.$socDir);
@@ -142,7 +162,7 @@
 
           for (var i in names) {
             var name = names[i];
-            if (name === 'pid.txt') continue;
+
             var postfix = name.slice(-4);
             if (postfix === '.tmp') continue;
 
@@ -187,10 +207,20 @@
         throw new err;
       } finally {
         delete dirWatches[cliDir]; // ####
+        console.log('deleting... %s', getTermName(cliDir)); // ####
         yield sleep(FINISH_TIMEOUT);
         if (cliDirWatch) cliDirWatch.close();
         yield sleep(FINISH_TIMEOUT);
         yield rmdirRecursive(cliDir);
+
+        if (soc.$remotePath) {
+          var remotePath = path.resolve(config.dir, soc.$remotePath);
+          if (dirWatches[remotePath] !== null) console.log('eh? remotePath is not null?');
+          delete dirWatches[remotePath]; // ####
+          console.log('deleting... %s (1)', getTermName(remotePath)); // ####
+          yield sleep(FINISH_TIMEOUT);
+          yield rmdirRecursive(remotePath);
+        }
       }
       //console.log('close ' + soc.$socDir);
 
@@ -207,7 +237,7 @@
   } // createConnection
 
   //----------------------------------------------------------------------
-  // FnetSocket.write 書込み
+  // FnetSocket.write ソケット書込み
   FnetSocket.prototype.write = FnetSocket_write;
   function FnetSocket_write(buff) {
     var soc = this;
@@ -221,7 +251,7 @@
   }
 
   //----------------------------------------------------------------------
-  // FnetSocket.end 終了(クローズ)
+  // FnetSocket.end ソケット終了(クローズ)
   FnetSocket.prototype.end = FnetSocket_end;
   function FnetSocket_end(buff) {
     var soc = this;
@@ -232,7 +262,7 @@
   }
 
   //----------------------------------------------------------------------
-  // FnetSocket.read 読込み
+  // FnetSocket.read ソケット読込み
   FnetSocket.prototype.read = FnetSocket_read;
   function FnetSocket_read() {
     var soc = this;
@@ -245,14 +275,15 @@
     var buff = soc.$readBuffs.shift();
     if (buff instanceof Buffer) return buff;
     if (buff === 'end') {
-      process.nextTick(function () { soc.on('end'); });
+      process.nextTick(function () { soc.emit('end'); }); // on -> emit BUG FIX!
       return null;
     }
+    console.log('eh? soc.read error. buff type: %s', typeof buff);
     return null;
   }
 
   //----------------------------------------------------------------------
-  // FnetSocket.readStart
+  // FnetSocket.readStart ソケット読込み開始
   FnetSocket.prototype.readStart = FnetSocket_readStart;
   function FnetSocket_readStart() {
     var soc = this;
@@ -262,17 +293,16 @@
       var cliDir = path.resolve(config.dir, soc.$socDir);
 
       try {
-        try {
-          yield mkdirParents(cliDir);
-        } catch (err) {
-          if (err.code !== 'EEXIST') throw err;
-        }
-        //yield cofs.writeFile(path.resolve(cliDir, 'pid.txt'), process.pid);
-        // soc.emit('error', err);
+        //try {
+        yield mkdirParents(cliDir);
+        //} catch (err) {
+        //  if (err.code !== 'EEXIST') throw err;
+        //}
 
         var cliDirWatchChan = chan();
         var cliDirWatch = fs.watch(cliDir, cliDirWatchChan);
         dirWatches[cliDir] = cliDirWatch; // ####
+        console.log('creating... %s', getTermName(cliDir)); // ####
 
         loop: for (;;) {
           yield cliDirWatchChan;
@@ -283,7 +313,7 @@
 
           for (var i in names) {
             var name = names[i];
-            if (name === 'pid.txt') continue;
+
             var postfix = name.slice(-4);
             if (postfix === '.tmp') continue;
 
@@ -320,10 +350,20 @@
         throw new err;
       } finally {
         delete dirWatches[cliDir]; // ####
+        console.log('deleting... %s', getTermName(cliDir)); // ####
         yield sleep(FINISH_TIMEOUT);
         if (cliDirWatch) cliDirWatch.close();
         yield sleep(FINISH_TIMEOUT);
         yield rmdirRecursive(cliDir);
+
+        if (soc.$remotePath) {
+          var remotePath = path.resolve(config.dir, soc.$remotePath);
+          if (dirWatches[remotePath] !== null) console.log('eh? remotePath is not null?');
+          delete dirWatches[remotePath]; // ####
+          console.log('deleting... %s (2)', getTermName(remotePath)); // ####
+          yield sleep(FINISH_TIMEOUT);
+          yield rmdirRecursive(remotePath);
+        }
       }
 
     })();
@@ -336,6 +376,7 @@
     var soc = this;
     soc.$remotePath = remotePath;
     dirWatches[path.resolve(config.dir, remotePath)] = null; // ####
+    console.log('connect ... %s', remotePath); // ####
 
     co(function*() {
       try {
@@ -397,9 +438,10 @@
 
         yield rmdirRecursive(svrDir);
         yield mkdirParents(svrDir);
-        //yield cofs.writeFile(path.resolve(svrDir, 'pid.txt'), process.pid);
+
         var svrDirWatch = fs.watch(svrDir, svrDirWatchChan);
         dirWatches[svrDir] = svrDirWatch; // ####
+        console.log('creating... %s', getTermName(svrDir)); // ####
 
         server.emit('listening');
         for (;;) {
@@ -412,7 +454,6 @@
 
           for (var i in names) {
             var name = names[i];
-            if (name === 'pid.txt') continue;
 
             if (!(name in server.$connections)) {
               var postfix = name.slice(-4);
@@ -459,6 +500,7 @@
         throw err;
       } finally {
         delete dirWatches[svrDir]; // ####
+        console.log('deleting... %s', getTermName(svrDir)); // ####
         yield sleep(FINISH_TIMEOUT);
         if (svrDirWatch) svrDirWatch.close();
         yield sleep(FINISH_TIMEOUT);
