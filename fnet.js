@@ -219,9 +219,9 @@
         if (soc.$remotePath) {
           var remotePath = path.resolve(config.dir, soc.$remotePath);
           if (dirWatches[remotePath] !== null) console.log('eh? remotePath is not null?');
+          yield sleep(1000 * 3600); // #### 1 hour
           delete dirWatches[remotePath]; // ####
           console.log('deleting... %s (1)', getTermName(remotePath)); // ####
-          yield sleep(FINISH_TIMEOUT);
           yield rmdirRecursive(remotePath);
         }
       }
@@ -362,9 +362,9 @@
         if (soc.$remotePath) {
           var remotePath = path.resolve(config.dir, soc.$remotePath);
           if (dirWatches[remotePath] !== null) console.log('eh? remotePath is not null?');
+          yield sleep(1000 * 3600); // #### 1 hour
           delete dirWatches[remotePath]; // ####
           console.log('deleting... %s (2)', getTermName(remotePath)); // ####
-          yield sleep(FINISH_TIMEOUT);
           yield rmdirRecursive(remotePath);
         }
       }
