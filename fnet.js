@@ -138,11 +138,7 @@
 
       try {
         yield rmdirRecursive(cliDir);
-        //try {
         yield mkdirParents(cliDir);
-        //} catch (err) {
-        //  if (err.code !== 'EEXIST') throw err;
-        //}
 
         var cliDirWatchChan = chan();
         var cliDirWatch = fs.watch(cliDir, cliDirWatchChan);
@@ -300,11 +296,7 @@
       var cliDir = path.resolve(config.dir, soc.$socDir);
 
       try {
-        //try {
         yield mkdirParents(cliDir);
-        //} catch (err) {
-        //  if (err.code !== 'EEXIST') throw err;
-        //}
 
         var cliDirWatchChan = chan();
         var cliDirWatch = fs.watch(cliDir, cliDirWatchChan);
@@ -483,11 +475,7 @@
 
                 var cli = new FnetSocket();
                 var socDir = cli.$socDir;
-                //try {
                 yield mkdirParents(path.resolve(config.dir, socDir));
-                //} catch (err) {
-                //  if (err.code !== 'EEXIST') throw err;
-                //}
                 cli.readStart();
                 server.$connections[socDir] = cli;
                 var file = path.resolve(config.dir, contents, 'ack_' + cli.$no);
