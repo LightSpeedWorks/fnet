@@ -13,6 +13,7 @@
   var chan = require('co-chan');
   var mkdirParents = require('mkdir-parents');
   var rmdirRecursive = require('rmdir-recursive');
+  var FINISH_TIMEOUT = 100;
 
   // timer
   function timer(ms) {
@@ -164,8 +165,9 @@
         soc.emit('error', err);
         throw new err;
       } finally {
-        yield timer(1000);
+        yield timer(FINISH_TIMEOUT);
         if (cliDirWatch) cliDirWatch.close();
+        yield timer(FINISH_TIMEOUT);
         yield rmdirRecursive(cliDir);
       }
       //console.log('close ' + soc.$socDir);
@@ -294,8 +296,9 @@
         soc.emit('error', err);
         throw new err;
       } finally {
-        yield timer(1000);
+        yield timer(FINISH_TIMEOUT);
         if (cliDirWatch) cliDirWatch.close();
+        yield timer(FINISH_TIMEOUT);
         yield rmdirRecursive(cliDir);
       }
 
@@ -427,7 +430,7 @@
       } catch (err) {
         throw err;
       } finally {
-        yield timer(1000);
+        yield timer(FINISH_TIMEOUT);
         if (svrDirWatch) svrDirWatch.close();
       }
 
