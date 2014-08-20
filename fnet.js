@@ -17,6 +17,24 @@
 
   var dirWatches = {}; // key=dirName, value=fs.watch
 
+  function exitHandler(name) {
+    console.log('process on %s...', name);
+    var dirs = Object.keys(dirWatches);
+    for (var i in dirs) {
+      var dir = dirs[i];
+      var watch = dirWatches[dir];
+      if (watch) watch.close();
+      delete dirWatches[dir];
+      console.log('deleting... %s', dir);
+      rmdirRecursive.sync(dir);
+    }
+    if (name !== 'exit') process.exit();
+  }
+
+  process.on('SIGHUP', exitHandler.bind(null, 'SIGHUP'));
+  process.on('SIGINT', exitHandler.bind(null, 'SIGINT'));
+  process.on('exit', exitHandler.bind(null, 'exit'));
+
   // sleep
   function sleep(ms) {
     return function (cb) {
@@ -317,6 +335,8 @@
   function FnetSocket_writeStart(remotePath) {
     var soc = this;
     soc.$remotePath = remotePath;
+    dirWatches[path.resolve(config.dir, remotePath)] = null; // ####
+
     co(function*() {
       try {
         while (!soc.$writeChan.done()) {
