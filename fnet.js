@@ -213,6 +213,11 @@
   function FnetSocket_read() {
     var soc = this;
     if (soc.$readBuffs.length === 0) return null;
+    if (soc.$readBuffs.length > 1) {
+      process.nextTick(function () {
+        soc.emit('readable');
+      });
+    }
     var buff = soc.$readBuffs.shift();
     if (buff instanceof Buffer) return buff;
     if (buff === 'end') {
