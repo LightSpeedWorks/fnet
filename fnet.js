@@ -16,6 +16,7 @@
   var rmdirRecursive = require('rmdir-recursive');
 
   var FINISH_TIMEOUT = 100;
+  var LONG_TIMEOUT = 1000 * 3600 * 6;
 
   var dirWatches = {}; // key=dirName, value=fs.watch
 
@@ -39,15 +40,16 @@
       var exists = fs.existsSync(dir);
       if (!exists) waitFlag = true;
       var name = getTermName(dir);
-      console.log('deleting... %s   ', name,
-         exists ? '' : '*** DOES NOT EXISTS ALREADY ***');
+      if (exists) console.log('deleting... %s   ', name);
+      //console.log('deleting... %s   ', name,
+      //   exists ? '' : '*** DOES NOT EXISTS ALREADY ***');
       rmdirRecursive.sync(dir);
     }
     if (reason !== 'exit') {
       if (waitFlag) {
         return setTimeout(function () {
           process.exit();
-        }, 5000);
+        }, 100);
       }
       process.exit();
     }
@@ -219,7 +221,7 @@
         if (soc.$remotePath) {
           var remotePath = path.resolve(config.dir, soc.$remotePath);
           if (dirWatches[remotePath] !== null) console.log('eh? remotePath is not null?');
-          yield sleep(1000 * 3600); // #### 1 hour
+          yield sleep(LONG_TIMEOUT); // ####
           delete dirWatches[remotePath]; // ####
           console.log('deleting... %s (1)', getTermName(remotePath)); // ####
           yield rmdirRecursive(remotePath);
@@ -362,7 +364,7 @@
         if (soc.$remotePath) {
           var remotePath = path.resolve(config.dir, soc.$remotePath);
           if (dirWatches[remotePath] !== null) console.log('eh? remotePath is not null?');
-          yield sleep(1000 * 3600); // #### 1 hour
+          yield sleep(LONG_TIMEOUT); // ####
           delete dirWatches[remotePath]; // ####
           console.log('deleting... %s (2)', getTermName(remotePath)); // ####
           yield rmdirRecursive(remotePath);
