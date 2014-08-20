@@ -15,6 +15,8 @@
   var rmdirRecursive = require('rmdir-recursive');
   var FINISH_TIMEOUT = 100;
 
+  var dirWatches = {}; // key=dirName, value=fs.watch
+
   // sleep
   function sleep(ms) {
     return function (cb) {
@@ -107,6 +109,7 @@
 
         var cliDirWatchChan = chan();
         var cliDirWatch = fs.watch(cliDir, cliDirWatchChan);
+        dirWatches[cliDir] = cliDirWatch; // ####
 
         var conFile = path.resolve(remoteDir, 'con_' + host + '_' + soc.$no);
         yield cofs.writeFile(conFile + '.tmp', soc.$socDir);
@@ -165,6 +168,7 @@
         soc.emit('error', err);
         throw new err;
       } finally {
+        delete dirWatches[cliDir]; // ####
         yield sleep(FINISH_TIMEOUT);
         if (cliDirWatch) cliDirWatch.close();
         yield sleep(FINISH_TIMEOUT);
@@ -250,6 +254,7 @@
 
         var cliDirWatchChan = chan();
         var cliDirWatch = fs.watch(cliDir, cliDirWatchChan);
+        dirWatches[cliDir] = cliDirWatch; // ####
 
         loop: for (;;) {
           yield cliDirWatchChan;
@@ -296,6 +301,7 @@
         soc.emit('error', err);
         throw new err;
       } finally {
+        delete dirWatches[cliDir]; // ####
         yield sleep(FINISH_TIMEOUT);
         if (cliDirWatch) cliDirWatch.close();
         yield sleep(FINISH_TIMEOUT);
@@ -373,6 +379,8 @@
         yield mkdirParents(svrDir);
         //yield cofs.writeFile(path.resolve(svrDir, 'pid.txt'), process.pid);
         var svrDirWatch = fs.watch(svrDir, svrDirWatchChan);
+        dirWatches[svrDir] = svrDirWatch; // ####
+
         server.emit('listening');
         for (;;) {
           yield svrDirWatchChan;
@@ -430,8 +438,11 @@
       } catch (err) {
         throw err;
       } finally {
+        delete dirWatches[svrDir]; // ####
         yield sleep(FINISH_TIMEOUT);
         if (svrDirWatch) svrDirWatch.close();
+        yield sleep(FINISH_TIMEOUT);
+        yield rmdirRecursive(svrDir);
       }
 
     })();
