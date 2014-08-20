@@ -53,7 +53,7 @@
   //----------------------------------------------------------------------
   // cliDirName
   function cliDirName(port) {
-    return 'cli_' + hostname + '_' + process.pid + '_' + pad(port, 8);
+    return 'soc_' + hostname + '_pid' + process.pid + '_' + pad(port, 8);
   }
 
   //######################################################################
