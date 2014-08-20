@@ -460,21 +460,20 @@
               if (postfix === '.tmp') continue;
 
               var prefix = name.slice(0,4);
+
               // connect request 接続要求
               if (prefix === 'con_') {
-                //console.log('svr con: ' + name);
                 var contents = yield cofs.readFile(path.resolve(svrDir, name));
                 contents = String(contents);
-                //console.log(contents);
                 yield cofs.unlink(path.resolve(svrDir, name));
 
                 var cli = new FnetSocket();
                 var socDir = cli.$socDir;
-                try {
-                  yield mkdirParents(path.resolve(config.dir, socDir));
-                } catch (err) {
-                  if (err.code !== 'EEXIST') throw err;
-                }
+                //try {
+                yield mkdirParents(path.resolve(config.dir, socDir));
+                //} catch (err) {
+                //  if (err.code !== 'EEXIST') throw err;
+                //}
                 cli.readStart();
                 server.$connections[socDir] = cli;
                 var file = path.resolve(config.dir, contents, 'ack_' + cli.$no);
