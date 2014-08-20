@@ -55,10 +55,10 @@
 
   process.on('SIGHUP', exitHandler.bind(null, 'SIGHUP')); // on console close
   process.on('SIGINT', exitHandler.bind(null, 'SIGINT')); // on control-c
-  process.on('exit', exitHandler.bind(null, 'exit')); // on exit
+  process.on('exit',   exitHandler.bind(null, 'exit'));   // on exit
 
   //----------------------------------------------------------------------
-  // sleep 眠る(待つ)
+  // sleep (co-sleep) 眠る(待つ)
   function sleep(ms) {
     return function (cb) {
       setTimeout(cb, ms);
@@ -168,6 +168,8 @@
 
             var prefix = name.slice(0,4);
             var file = path.resolve(cliDir, name);
+
+            // ack (connect request accepted) 接続要求受入れ完了
             if (prefix === 'ack_') {
               var contents = yield cofs.readFile(file);
               contents = String(contents);
@@ -177,6 +179,8 @@
               soc.emit('connect');
               continue;
             }
+
+            // data received データ受信
             if (prefix === 'dat_') {
               var contents = yield cofs.readFile(file);
               yield cofs.unlink(file);
@@ -184,6 +188,8 @@
               soc.emit('readable');
               continue;
             }
+
+            // end/close received 終了受信
             if (prefix === 'end_') {
               yield cofs.unlink(file);
               if (soc.$readBuffs.length === 0) {
@@ -194,6 +200,7 @@
               soc.emit('readable');
               break loop;
             }
+
             console.log('cli ? ' + name + ' / ' + cliDir);
 
           } // for i in names
@@ -319,6 +326,8 @@
 
             var prefix = name.slice(0,4);
             var file = path.resolve(cliDir, name);
+
+            // data received データ受信
             if (prefix === 'dat_') {
               var contents = yield cofs.readFile(file);
               yield cofs.unlink(file);
@@ -326,6 +335,8 @@
               soc.emit('readable');
               continue;
             }
+
+            // end/close received 終了受信
             if (prefix === 'end_') {
               yield cofs.unlink(file);
               if (soc.$readBuffs.length === 0) {
@@ -389,6 +400,8 @@
             console.log('write arg must be String or Buffer! ' + typeof buff + ' ' + util.inspect(buff));
             continue;
           }
+
+          // データ書込み
           var file = path.resolve(config.dir, soc.$remotePath, 'dat_' + pad(++soc.$writeSeq, 8));
           yield cofs.writeFile(file + '.tmp', buff);
           yield cofs.rename(file + '.tmp', file + '.txt');
@@ -396,6 +409,7 @@
       } catch (err) {
         throw err;
       } finally {
+        // 終了書込み
         var file = path.resolve(config.dir, soc.$remotePath, 'end_' + pad(++soc.$writeSeq, 8));
         yield cofs.writeFile(file + '.tmp', '');
         yield cofs.rename(file + '.tmp', file + '.txt');
@@ -484,9 +498,6 @@
                 continue;
               }
 
-              //console.log('svr new: ' + name);
-              //// new server socket
-              //server.$connections[name] = new FnetSocket();
             }
           } // for i in names
 
