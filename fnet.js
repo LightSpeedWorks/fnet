@@ -15,11 +15,11 @@
   var rmdirRecursive = require('rmdir-recursive');
   var FINISH_TIMEOUT = 100;
 
-  // timer
-  function timer(ms) {
-    var cb;
-    setTimeout(function () { if (cb) cb(); }, ms);
-    return function (fn) { cb = fn; };
+  // sleep
+  function sleep(ms) {
+    return function (cb) {
+      setTimeout(cb, ms);
+    };
   }
 
   // hostname ホスト名
@@ -165,9 +165,9 @@
         soc.emit('error', err);
         throw new err;
       } finally {
-        yield timer(FINISH_TIMEOUT);
+        yield sleep(FINISH_TIMEOUT);
         if (cliDirWatch) cliDirWatch.close();
-        yield timer(FINISH_TIMEOUT);
+        yield sleep(FINISH_TIMEOUT);
         yield rmdirRecursive(cliDir);
       }
       //console.log('close ' + soc.$socDir);
@@ -296,9 +296,9 @@
         soc.emit('error', err);
         throw new err;
       } finally {
-        yield timer(FINISH_TIMEOUT);
+        yield sleep(FINISH_TIMEOUT);
         if (cliDirWatch) cliDirWatch.close();
-        yield timer(FINISH_TIMEOUT);
+        yield sleep(FINISH_TIMEOUT);
         yield rmdirRecursive(cliDir);
       }
 
@@ -430,7 +430,7 @@
       } catch (err) {
         throw err;
       } finally {
-        yield timer(FINISH_TIMEOUT);
+        yield sleep(FINISH_TIMEOUT);
         if (svrDirWatch) svrDirWatch.close();
       }
 
