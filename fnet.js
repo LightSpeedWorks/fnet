@@ -63,7 +63,6 @@
     var soc = this;
     events.EventEmitter.call(soc);
     soc.$no = nextCliSocNo();
-    soc.$dir = 'cli_' + hostname;
     soc.$socDir = cliDirName(soc.$no);
     soc.$reading = false;
     soc.$readBuffs = [];
@@ -337,7 +336,6 @@
     events.EventEmitter.call(server);
     server.$connections = {};
     server.$reading = false;
-    server.$dir = 'svr_' + hostname;
     server.$socDirs = [];
   } // Server
 
@@ -402,18 +400,14 @@
                 }
                 cli.readStart();
                 server.$connections[socDir] = cli;
-                var ackFile = path.resolve(config.dir, contents, 'ack_' + cli.$no);
-                yield cofs.writeFile(ackFile + '.tmp', socDir);
-                yield cofs.rename(ackFile + '.tmp', ackFile + '.txt');
+                var file = path.resolve(config.dir, contents, 'ack_' + cli.$no);
+                yield cofs.writeFile(file + '.tmp', socDir);
+                yield cofs.rename(file + '.tmp', file + '.txt');
                 cli.writeStart(contents);
                 server.emit('connection', cli);
                 continue;
               }
 
-              if (prefix !== 'soc_') {
-                console.log('svr new? ' + name);
-                continue;
-              }
               //console.log('svr new: ' + name);
               //// new server socket
               //server.$connections[name] = new FnetSocket();
